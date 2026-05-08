@@ -35,7 +35,9 @@ jobs:
       with:
         name: Latest Build
         tag_name: rolling
-        files: dist/modmenu.user.js
+        files: |
+          dist/modmenu.user.js
+          dist/modmenu.meta.js
         generate_release_notes: false
         prerelease: false
       env:

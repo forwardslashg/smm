@@ -32,9 +32,9 @@ A powerful Tampermonkey userscript that enhances [character.ai](https://characte
    npm run build
    ```
 
-2. The built userscript will be available at `dist/modmenu.user.js`
+2. The build will generate both `dist/modmenu.user.js` and `dist/modmenu.meta.js`
 
-3. Open the file in your browser or visit `file:///path/to/dist/modmenu.user.js` and click "Install"
+3. Open `dist/modmenu.user.js` in your browser or visit `file:///path/to/dist/modmenu.user.js` and click "Install"
 
 4. Navigate to [character.ai](https://character.ai) - the modmenu should automatically activate
 
@@ -84,8 +84,8 @@ src/
 The project uses **esbuild** for fast bundling and minification. The build process:
 
 1. Bundles all source files starting from `src/index.js`
-2. Prepends metadata from `meta.txt` (Tampermonkey headers)
-3. Outputs the final userscript to `dist/modmenu.user.js`
+2. Prepends metadata from `meta.txt` and injects rolling release `@downloadURL` and `@updateURL` headers
+3. Outputs the final userscript to `dist/modmenu.user.js` and the update metadata to `dist/modmenu.meta.js`
 
 ### Creating New Modules
 
