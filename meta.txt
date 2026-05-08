@@ -1,0 +1,14 @@
+// ==UserScript==
+// @name         Slash's Modmenu
+// @namespace    slash.gay
+// @version      5.0.0
+// @description  A sleek C.AI modmenu powered by reverse-engineered API
+// @author       Slash
+// @match        https://*.character.ai/*
+// @exclude      https://pay.character.ai/*
+// @grant        GM_addStyle
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @icon         https://cdn.slash.gay/r/ModMenu-Logo.png
+// @run-at       document-start
+// ==/UserScript==
