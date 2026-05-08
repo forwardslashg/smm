@@ -24,6 +24,8 @@ A powerful Tampermonkey userscript that enhances [character.ai](https://characte
   - [Tampermonkey](https://www.tampermonkey.net/) (Recommended - Chrome, Firefox, Edge, Safari)
   - [Greasemonkey](https://www.greasespot.net/) (Firefox only)
 
+[![Static Badge](https://img.shields.io/badge/click_to_install_userscript-stable-blue)](https://github.com/forwardslashg/smm/releases/download/rolling/modmenu.user.js)
+
 ### Installation Steps
 
 1. Build the userscript:
