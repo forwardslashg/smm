@@ -34,3 +34,6 @@ logs/
 *.temp
 .cache/
 other/
+
+modmenu.meta.js
+modmenu.user.js
