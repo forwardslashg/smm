@@ -1,5 +1,5 @@
 import esbuild from 'esbuild';
-import { readFileSync, writeFileSync, unlinkSync, mkdirSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, unlinkSync, mkdirSync } from 'fs';
 import { execSync } from 'child_process';
 import readline from 'readline';
 
@@ -9,8 +9,7 @@ const CONFIG = {
     devNamespace: 'slash.gay.dev',
     stableBranch: 'main',
     devBranch: 'development',
-    repoRawUrl: 'https://raw.githubusercontent.com/forwardslashg/smm',
-    releaseBaseUrl: 'https://github.com/forwardslashg/smm/releases/download',
+    rollingBaseUrl: 'https://github.com/forwardslashg/smm/releases/download/rolling',
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -106,13 +105,8 @@ async function buildUserscript(metaOverrides = {}, type = 'quick') {
     for (const entry of lines) {
         if (entry.raw.trim() === '// ==/UserScript==') {
             if (type === 'stable') {
-                const base = `${CONFIG.releaseBaseUrl}/v${effectiveMeta.version}`;
-                out.push(`// @downloadURL ${base}/modmenu.user.js`);
-                out.push(`// @updateURL   ${base}/modmenu.meta.js`);
-            } else if (type === 'dev') {
-                const base = `${CONFIG.repoRawUrl}/${CONFIG.devBranch}/dist`;
-                out.push(`// @downloadURL ${base}/modmenu.user.js`);
-                out.push(`// @updateURL   ${base}/modmenu.meta.js`);
+                out.push(`// @downloadURL ${CONFIG.rollingBaseUrl}/modmenu.user.js`);
+                out.push(`// @updateURL   ${CONFIG.rollingBaseUrl}/modmenu.meta.js`);
             }
             out.push(entry.raw);
             addedUrls = true;
@@ -124,7 +118,7 @@ async function buildUserscript(metaOverrides = {}, type = 'quick') {
             continue;
         }
 
-        // Skip existing downloadURL / updateURL lines (re-added above if needed)
+        // Skip existing downloadURL / updateURL lines
         if (entry.key === 'downloadURL' || entry.key === 'updateURL') {
             continue;
         }
@@ -136,16 +130,9 @@ async function buildUserscript(metaOverrides = {}, type = 'quick') {
     }
 
     // Fallback if closing tag wasn't found
-    if (!addedUrls && (type === 'stable' || type === 'dev')) {
-        if (type === 'stable') {
-            const base = `${CONFIG.releaseBaseUrl}/v${effectiveMeta.version}`;
-            out.push(`// @downloadURL ${base}/modmenu.user.js`);
-            out.push(`// @updateURL   ${base}/modmenu.meta.js`);
-        } else {
-            const base = `${CONFIG.repoRawUrl}/${CONFIG.devBranch}/dist`;
-            out.push(`// @downloadURL ${base}/modmenu.user.js`);
-            out.push(`// @updateURL   ${base}/modmenu.meta.js`);
-        }
+    if (!addedUrls && type === 'stable') {
+        out.push(`// @downloadURL ${CONFIG.rollingBaseUrl}/modmenu.user.js`);
+        out.push(`// @updateURL   ${CONFIG.rollingBaseUrl}/modmenu.meta.js`);
     }
 
     const metaBlock = out.join('\n');
@@ -211,13 +198,15 @@ async function stableRelease() {
     updateMetaFile(meta, content);
     await buildUserscript({}, 'stable');
 
-    exec('git add -f dist/ meta.txt');
+    // Only commit meta.txt — dist/ is built by GitHub Actions and attached to the rolling release
+    exec('git add meta.txt');
     exec(`git commit -m "${msg}"`);
     exec(`git tag v${newVersion}`);
     exec(`git push origin ${CONFIG.stableBranch}`);
     exec(`git push origin v${newVersion}`);
 
-    console.log(`\nStable release v${newVersion} published!`);
+    console.log(`\nStable release v${newVersion} pushed to ${CONFIG.stableBranch}!`);
+    console.log('The GitHub Actions workflow will update the rolling release shortly.');
 }
 
 async function devRelease() {
@@ -241,11 +230,8 @@ async function devRelease() {
     updateMetaFile(meta, content);
     await buildUserscript({}, 'dev');
 
-    // Stash dev changes, switch branch, apply, commit, push, switch back
-    const stashFiles = ['meta.txt', 'dist/modmenu.meta.js', 'dist/modmenu.user.js'].filter((f) =>
-        existsSync(f)
-    );
-    exec(`git stash push -m "dev-release" ${stashFiles.join(' ')}`);
+    // Only commit meta.txt on the dev branch — dist stays local
+    exec('git stash push -m "dev-release" meta.txt');
 
     try {
         execQuiet(`git rev-parse --verify ${CONFIG.devBranch}`);
@@ -255,7 +241,7 @@ async function devRelease() {
     }
 
     exec('git stash pop');
-    exec('git add -f dist/ meta.txt');
+    exec('git add meta.txt');
     exec(`git commit -m "${msg}"`);
     exec(`git push origin ${CONFIG.devBranch}`);
 
@@ -264,6 +250,7 @@ async function devRelease() {
     }
 
     console.log(`\nDev release v${version} pushed to ${CONFIG.devBranch}!`);
+    console.log('The built files are in dist/ for local/manual installation.');
 }
 
 async function privateRelease() {
