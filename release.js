@@ -49,10 +49,8 @@ function readMeta() {
 function updateMetaFile(updates, originalContent = null) {
     let content = originalContent || readFileSync('meta.txt', 'utf-8');
     for (const [key, value] of Object.entries(updates)) {
-        const regex = new RegExp(`^(// @${escapeRegExp(key)}\\s+).*$`, 'gm');
-        if (regex.test(content)) {
-            content = content.replace(regex, `$1${value}`);
-        }
+        const regex = new RegExp(`^(// @${escapeRegExp(key)}\\s+).*$`, 'm');
+        content = content.replace(regex, `$1${value}`);
     }
     writeFileSync('meta.txt', content, 'utf-8');
 }
@@ -102,26 +100,54 @@ async function buildUserscript(metaOverrides = {}, type = 'quick') {
     const { lines, meta } = readMeta();
     const effectiveMeta = { ...meta, ...metaOverrides };
 
-    const out = ['// ==UserScript=='];
+    const out = [];
+    let addedUrls = false;
+
     for (const entry of lines) {
-        if (entry.key) {
-            const value = metaOverrides[entry.key] !== undefined ? metaOverrides[entry.key] : entry.value;
-            out.push(`// @${entry.key} ${value}`);
+        if (entry.raw.trim() === '// ==/UserScript==') {
+            if (type === 'stable') {
+                const base = `${CONFIG.releaseBaseUrl}/v${effectiveMeta.version}`;
+                out.push(`// @downloadURL ${base}/modmenu.user.js`);
+                out.push(`// @updateURL   ${base}/modmenu.meta.js`);
+            } else if (type === 'dev') {
+                const base = `${CONFIG.repoRawUrl}/${CONFIG.devBranch}/dist`;
+                out.push(`// @downloadURL ${base}/modmenu.user.js`);
+                out.push(`// @updateURL   ${base}/modmenu.meta.js`);
+            }
+            out.push(entry.raw);
+            addedUrls = true;
+            continue;
+        }
+
+        if (!entry.key) {
+            out.push(entry.raw);
+            continue;
+        }
+
+        // Skip existing downloadURL / updateURL lines (re-added above if needed)
+        if (entry.key === 'downloadURL' || entry.key === 'updateURL') {
+            continue;
+        }
+
+        const value = metaOverrides[entry.key] !== undefined ? metaOverrides[entry.key] : entry.value;
+        const regex = new RegExp(`^(// @${escapeRegExp(entry.key)}\\s+).*$`);
+        const newLine = entry.raw.replace(regex, `$1${value}`);
+        out.push(newLine);
+    }
+
+    // Fallback if closing tag wasn't found
+    if (!addedUrls && (type === 'stable' || type === 'dev')) {
+        if (type === 'stable') {
+            const base = `${CONFIG.releaseBaseUrl}/v${effectiveMeta.version}`;
+            out.push(`// @downloadURL ${base}/modmenu.user.js`);
+            out.push(`// @updateURL   ${base}/modmenu.meta.js`);
+        } else {
+            const base = `${CONFIG.repoRawUrl}/${CONFIG.devBranch}/dist`;
+            out.push(`// @downloadURL ${base}/modmenu.user.js`);
+            out.push(`// @updateURL   ${base}/modmenu.meta.js`);
         }
     }
 
-    if (type === 'stable') {
-        const base = `${CONFIG.releaseBaseUrl}/v${effectiveMeta.version}`;
-        out.push(`// @downloadURL ${base}/modmenu.user.js`);
-        out.push(`// @updateURL   ${base}/modmenu.meta.js`);
-    } else if (type === 'dev') {
-        const base = `${CONFIG.repoRawUrl}/${CONFIG.devBranch}/dist`;
-        out.push(`// @downloadURL ${base}/modmenu.user.js`);
-        out.push(`// @updateURL   ${base}/modmenu.meta.js`);
-    }
-    // private / quick: no auto-update URLs
-
-    out.push('// ==/UserScript==');
     const metaBlock = out.join('\n');
 
     await esbuild.build({
